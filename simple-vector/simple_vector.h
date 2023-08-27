@@ -7,6 +7,12 @@
 #include "array_ptr.h"
 #include <utility>
 #include <iterator>
+
+
+// Марина, по вашему комментарию насчёт списанной работы ответил вам в пачке.
+// Зайдите, пожалуйста, в личные сообщения)
+// С уважением, Артём Козлов
+
 struct ReserveProxyObj
 {
     
@@ -27,19 +33,14 @@ public:
    
 
     // Создаёт вектор из size элементов, инициализированных значением по умолчанию
-    explicit SimpleVector(size_t size) : size_(size), capacity_(size) {
-        //arr_ = new Type[size];
-        ArrayPtr<Type> new_arr_(size);
-        arr_.swap(new_arr_);
+    explicit SimpleVector(size_t size) : size_(size), capacity_(size), arr_(ArrayPtr<Type>(size)) {
         Iterator beginn = arr_.Get();
         // Iterator endd = &arr_.Get()[static_cast<int>(size_)]; 
         std::fill(beginn, beginn + size, Type{});
     }
 
     // Создаёт вектор из size элементов, инициализированных значением value
-    SimpleVector(size_t size, const Type& value): size_(size), capacity_(size) {
-        ArrayPtr<Type> new_arr_(size);
-        arr_.swap(new_arr_);
+    SimpleVector(size_t size, const Type& value): size_(size), capacity_(size),  arr_(ArrayPtr<Type>(size)) {
         Iterator beginn = arr_.Get();
         // Iterator endd = &arr_.Get()[static_cast<int>(size_)]; 
 
@@ -69,11 +70,11 @@ public:
         }
     }
 
-    SimpleVector(ReserveProxyObj obj) {
+    SimpleVector(ReserveProxyObj obj): arr_(ArrayPtr<Type>(static_cast<size_t>(0))) {
         capacity_ = obj.capacity;
         size_ = 0;
-        ArrayPtr<Type> new_arr(static_cast<size_t>(0));
-        arr_.swap(new_arr);
+        // ArrayPtr<Type> new_arr(static_cast<size_t>(0));
+        // arr_.swap(new_arr);
 
     }
     // Возвращает количество элементов в массиве
@@ -90,22 +91,19 @@ public:
 
     // Сообщает, пустой ли массив
     bool IsEmpty() const noexcept {
-        if (size_ == 0) {
-            return true;
-        }
-        else {
-            return false;
-        }
+     return size_ == 0;
         
     }
 
     // Возвращает ссылку на элемент с индексом index
     Type& operator[](size_t index) noexcept {
+       assert(index < size_);
        return arr_[index];
     }
 
     // Возвращает константную ссылку на элемент с индексом index
     const Type& operator[](size_t index) const noexcept {
+       assert(index < size_);
        return arr_[index];
     }
 
@@ -139,39 +137,43 @@ public:
 
     // Изменяет размер массива.
     // При увеличении размера новые элементы получают значение по умолчанию для типа Type
-    void Resize(size_t new_size) {
-        if (new_size < size_) {
-            size_ = new_size;
+    void Resize(size_t new_size) { 
+        size_t result_size;
+        if (new_size < size_) { 
+           result_size = new_size;
         }
-        else if (capacity_ > new_size) {
-            auto temp_old_size_ = size_;
-            size_ = new_size;
-            Iterator beginn = arr_.Get();
-            // Iterator endd = &arr_[static_cast<int>(size_)];
-            for (auto i = beginn + temp_old_size_; i != beginn + size_; i++) {
-                *i = Type{};
-            }
-           // std::fill(beginn + temp_old_size_, beginn + size_, Type{});
-        }
-        else {
-            Type* new_arr_ = new Type[new_size];
-            Iterator beginn = arr_.Get();
-            //Iterator endd = &arr_[static_cast<int>(size_)]; 
-            std::move(beginn, beginn + size_, new_arr_);
-            for (auto i = new_arr_ + size_; i != new_arr_+new_size; i++) {
-                *i = Type{};
-            }
-            //std::fill(new_arr_ + size_, new_arr_+new_size, Type{});
-            capacity_ = std::max(capacity_*2, new_size);
-            size_ = new_size;
-            ArrayPtr<Type> new_arr2_(std::move(new_arr_));
-            arr_.swap(new_arr2_);
-            
-        }
-        
 
-        
-    }
+        else if (capacity_ > new_size) { 
+            auto temp_old_size_ = size_; 
+            result_size = new_size; 
+            Iterator beginn = arr_.Get(); 
+            // Iterator endd = &arr_[static_cast<int>(size_)]; 
+            for (auto i = beginn + temp_old_size_; i != beginn + result_size; i++) { 
+                *i = Type{}; 
+            } 
+           // std::fill(beginn + temp_old_size_, beginn + size_, Type{}); 
+        } 
+        else { 
+            Type* new_arr_ = new Type[new_size]; 
+            Iterator beginn = arr_.Get(); 
+            //Iterator endd = &arr_[static_cast<int>(size_)];  
+            std::move(beginn, beginn + size_, new_arr_); 
+            for (auto i = new_arr_ + size_; i != new_arr_+new_size; i++) { 
+                *i = Type{}; 
+            } 
+            //std::fill(new_arr_ + size_, new_arr_+new_size, Type{}); 
+            capacity_ = std::max(capacity_*2, new_size); 
+            result_size = new_size; 
+            ArrayPtr<Type> new_arr2_(std::move(new_arr_)); 
+            arr_.swap(new_arr2_); 
+             
+        } 
+        size_ = result_size;
+         
+ 
+         
+    } 
+
 
     // Возвращает итератор на начало массива
     // Для пустого массива может быть равен (или не равен) nullptr
@@ -182,8 +184,7 @@ public:
     // Возвращает итератор на элемент, следующий за последним
     // Для пустого массива может быть равен (или не равен) nullptr
     Iterator end() noexcept {
-        auto result = arr_.Get() + size_;
-        return result;
+        return arr_.Get() + size_;
     }
 
     // Возвращает константный итератор на начало массива
@@ -309,7 +310,8 @@ public:
     // Если перед вставкой значения вектор был заполнен полностью,
     // вместимость вектора должна увеличиться вдвое, а для вектора вместимостью 0 стать равной 1
      Iterator Insert(ConstIterator pos, const Type& value) {
-        size_t index = pos - arr_.Get();
+       int index = pos - arr_.Get();
+       assert(index < static_cast<int>(size_));
         if (size_ < capacity_) {
             std::copy_backward(arr_.Get() + index, arr_.Get() + size_, arr_.Get() + size_ + 1);
             arr_[index] = value;
@@ -339,7 +341,7 @@ public:
 
 
     Iterator Insert(ConstIterator pos, Type&& value) {
-        size_t index = pos - arr_.Get();
+        int index = pos - arr_.Get();
         if (size_ < capacity_) {
             std::move_backward(arr_.Get() + index, arr_.Get() + size_, arr_.Get() + size_ + 1);
             arr_[index] = std::move(value);
@@ -367,13 +369,16 @@ public:
 
     // "Удаляет" последний элемент вектора. Вектор не должен быть пустым
     void PopBack() noexcept {
+        assert(size_ != 0);
         size_--;
     }
 
     // Удаляет элемент вектора в указанной позиции
     Iterator Erase(ConstIterator pos) {
-      auto index = pos - arr_.Get();
+      int index = pos - arr_.Get();
+      assert(index < static_cast<int>(size_));
       std::move(arr_.Get() + index + 1, arr_.Get() + size_, arr_.Get() + index);
+      assert(size_ != 0);
       size_--;
       return arr_.Get() + index;
     }
@@ -417,22 +422,12 @@ inline bool operator==(const SimpleVector<Type>& lhs, const SimpleVector<Type>& 
    if (lhs.GetSize() != rhs.GetSize()) {
     return false;
    }
-   for (size_t i = 0; i < lhs.GetSize(); i++) {
-        if (lhs[i] != rhs[i]) {
-            return false;
-        }
-   }
-   return true;
+   return std::equal(lhs.begin(), lhs.end(), rhs.begin());
 }
 
 template <typename Type>
 inline bool operator!=(const SimpleVector<Type>& lhs, const SimpleVector<Type>& rhs) {
-    if (lhs == rhs) {
-         return false;
-   }
-   else {
-    return true;
-   }
+ return !(lhs == rhs);
 }
 
 template <typename Type>
@@ -442,32 +437,17 @@ inline bool operator<(const SimpleVector<Type>& lhs, const SimpleVector<Type>& r
 
 template <typename Type>
 inline bool operator<=(const SimpleVector<Type>& lhs, const SimpleVector<Type>& rhs) {
-    if ((lhs < rhs) || (lhs == rhs)) {
-    return true;
-    }
-    else {
-        return false;
-    }
+   return (lhs < rhs) || (lhs == rhs);
 }
 
 template <typename Type>
 inline bool operator>(const SimpleVector<Type>& lhs, const SimpleVector<Type>& rhs) {
-    if ((lhs < rhs) || (lhs == rhs)) {
-    return false;
-    }
-    else {
-        return true;
-    } 
+    return !(lhs <= rhs);
 }
 
 template <typename Type>
 inline bool operator>=(const SimpleVector<Type>& lhs, const SimpleVector<Type>& rhs) {
-    if (lhs < rhs) {
-        return false;
-    }
-    else {
-        return true;
-    }
+    return !(lhs < rhs);
 } 
 
 ReserveProxyObj Reserve(size_t capacity_to_reserve) {
